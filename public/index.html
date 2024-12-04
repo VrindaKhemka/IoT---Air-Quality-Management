@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Quality Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #alert-container { color: red; font-weight: bold; text-align: center; margin-top: 10px; }
+        canvas { max-width: 800px; margin: 20px auto; display: block; }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Air Quality Monitoring Dashboard</h1>
+    <div id="data-container" style="text-align: center;">
+        <p>Temperature: <span id="temperature"></span> °C</p>
+        <p>Humidity: <span id="humidity"></span> %</p>
+        <p>CO Levels: <span id="co"></span> ppm</p>
+        <p>Air Quality: <span id="airQuality"></span></p>
+        <p>Timestamp: <span id="timestamp"></span></p>
+    </div>
+
+    <div id="alert-container"></div>
+
+    <!-- Separate Charts -->
+    <canvas id="temperatureChart"></canvas>
+    <canvas id="humidityChart"></canvas>
+    <canvas id="coChart"></canvas>
+    <canvas id="airQualityChart"></canvas>
+
+    <script>
+        let tempData = [];
+        let humidityData = [];
+        let coData = [];
+        let airQualityData = [];
+        let timestamps = [];
+
+        async function fetchAirQuality() {
+            try {
+                const response = await fetch("http://localhost:3000/air-quality");
+                const data = await response.json();
+
+                // Log data for debugging
+                console.log("Fetched Data:", data);
+
+                // Update the data values
+                document.getElementById("temperature").innerText = parseFloat(data.temperature) || "N/A";
+                document.getElementById("humidity").innerText = parseFloat(data.humidity) || "N/A";
+                document.getElementById("co").innerText = parseFloat(data.co) || "N/A";
+                document.getElementById("airQuality").innerText = parseFloat(data.airQuality) || "N/A";
+                document.getElementById("timestamp").innerText = data.timestamp || new Date().toLocaleTimeString();
+
+                // Add new data to arrays
+                tempData.push(parseFloat(data.temperature) || 0);
+                humidityData.push(parseFloat(data.humidity) || 0);
+                coData.push(parseFloat(data.co) || 0);
+                airQualityData.push(parseFloat(data.airQuality) || 0);
+                timestamps.push(data.timestamp || new Date().toLocaleTimeString());
+
+                // Trim arrays to 10 entries
+                if (tempData.length > 10) {
+                    tempData.shift();
+                    humidityData.shift();
+                    coData.shift();
+                    airQualityData.shift();
+                    timestamps.shift();
+                }
+
+                // Update the charts
+                updateCharts();
+
+                // Handle alerts
+                const alertContainer = document.getElementById("alert-container");
+                // console.log("Alerts:", data.alerts);
+                if (data.alerts && data.alerts.length > 0) {
+                    alertContainer.innerHTML = data.alerts.join("<br>");
+                } else {
+                    alertContainer.innerHTML = "All levels are safe.";
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById("alert-container").innerText = "Failed to fetch data.";
+            }
+        }
+
+        // Initialize Separate Charts
+        const temperatureChart = new Chart(document.getElementById("temperatureChart"), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Temperature (°C)',
+                    borderColor: 'rgb(255, 99, 132)',
+                    fill: false,
+                    data: []
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Time' } },
+                    y: { title: { display: true, text: 'Temperature (°C)' } }
+                }
+            }
+        });
+
+        const humidityChart = new Chart(document.getElementById("humidityChart"), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Humidity (%)',
+                    borderColor: 'rgb(54, 162, 235)',
+                    fill: false,
+                    data: []
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Time' } },
+                    y: { title: { display: true, text: 'Humidity (%)' } }
+                }
+            }
+        });
+
+        const coChart = new Chart(document.getElementById("coChart"), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CO Levels (ppm)',
+                    borderColor: 'rgb(75, 192, 192)',
+                    fill: false,
+                    data: []
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Time' } },
+                    y: { title: { display: true, text: 'CO Levels (ppm)' } }
+                }
+            }
+        });
+
+        const airQualityChart = new Chart(document.getElementById("airQualityChart"), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Air Quality Index',
+                    borderColor: 'rgb(153, 102, 255)',
+                    fill: false,
+                    data: []
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Time' } },
+                    y: { title: { display: true, text: 'Air Quality Index' } }
+                }
+            }
+        });
+
+        function updateCharts() {
+            temperatureChart.data.labels = timestamps;
+            temperatureChart.data.datasets[0].data = tempData;
+            temperatureChart.update();
+
+            humidityChart.data.labels = timestamps;
+            humidityChart.data.datasets[0].data = humidityData;
+            humidityChart.update();
+
+            coChart.data.labels = timestamps;
+            coChart.data.datasets[0].data = coData;
+            coChart.update();
+
+            airQualityChart.data.labels = timestamps;
+            airQualityChart.data.datasets[0].data = airQualityData;
+            airQualityChart.update();
+        }
+
+        // Fetch data every 5 seconds
+        setInterval(fetchAirQuality, 5000);
+    </script>
+</body>
+</html>
